@@ -1,4 +1,4 @@
-# rader sensing code
+# Rader sensing code
 
 This is a code repository for radar-based ice sensing. It has currently been validated for radar frequencies of 7.29–60 GHz, ice densities of 0.80–0.917 g/cm³, ice thicknesses of 5–105 cm, and sensing distances of 0.5–2.5 m.
 
