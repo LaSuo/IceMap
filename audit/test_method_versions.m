@@ -74,7 +74,7 @@ function [low, high, time, cfg] = fusion_case()
     low = repmat(y, T, 1);
     high = repmat(reshape(z, 1, 1, 1, N), T, 2, 2, 1);
     cfg = icemap_config(struct('shallow_end_s', time(48), 'psf_sigma_grid_bins', [.8 1.2], ...
-                             'lambda_attenuation', .1, 'lambda_deconvolution', .01, 'solver_tolerance', 1e-6));
+                               'lambda_attenuation', .1, 'lambda_deconvolution', .01, 'solver_tolerance', 1e-6));
 end
 
 function testMineFusionDispatcherIsExact(testCase)
@@ -101,7 +101,7 @@ end
 
 function testAllFusionBranchesFiniteComplexAndConverged(testCase)
     [low, high, time, cfg] = fusion_case();
-    for version = {'v1', 'v2', 'v4', 'v5', 'v6', 'v7'}
+    for version = {'v1', 'v2', 'v4', 'v5', 'v6', 'v7', 'v8'}
         cfg.design2_version = version{1};
         out = design2_select(low, high, time, cfg);
         verifyEqual(testCase, size(out.data_l), size(low));
@@ -143,10 +143,10 @@ function testMainFilePipelineStillRunsAndExportsBothVersionIds(testCase)
     radarh = repmat(reshape(z, 1, 1, 1, N), T, 2, 2, 1);
     ins = struct('z_delta_m', zeros(T, 1), 'x_m', (0:T - 1)' * .02, 'y_m', zeros(T, 1));
     options = struct('surface_range_m', [.02 .055], 'spatial_sigma_m', .5, 'spatial_epsilon_m', .01, ...
-                   'shallow_end_s', time_s(60), 'psf_sigma_grid_bins', 1, 'lambda_attenuation', 1, ...
-                   'lambda_deconvolution', .1, 'solver_tolerance', 1e-5, 'attenuation_max_iter', 20000, ...
-                   'boundary_phase_threshold_rad', .4, 'boundary_dilation_bins', 2, 'tof_min_peak_distance_bins', 10, ...
-                   'tof_min_prominence', .2, 'tof_smooth_bins', 1, 'phase_trend_bins', 21);
+                     'shallow_end_s', time_s(60), 'psf_sigma_grid_bins', 1, 'lambda_attenuation', 1, ...
+                     'lambda_deconvolution', .1, 'solver_tolerance', 1e-5, 'attenuation_max_iter', 20000, ...
+                     'boundary_phase_threshold_rad', .4, 'boundary_dilation_bins', 2, 'tof_min_peak_distance_bins', 10, ...
+                     'tof_min_prominence', .2, 'tof_smooth_bins', 1, 'phase_trend_bins', 21);
     folder = tempname;
     mkdir(folder);
     cleanup = onCleanup(@()clean_test_folder(folder));
