@@ -1,10 +1,13 @@
 function output_files = run_icemap_variants(input_mat, output_dir, versions1, versions2, overrides, versions3)
     % Explicit Cartesian research sweep; fails rather than overwriting a result.
+    root = fileparts(mfilename('fullpath'));
+    addpath(fullfile(root, 'common'));
     if nargin < 3
         versions1 = cellstr(compose('v%d', 1:7));
     end
     if nargin < 4
-        versions2 = cellstr(compose('v%d', 1:7));
+        catalog = algorithm_catalog();
+        versions2 = cellstr(compose('v%d', 1:numel(catalog.d2)));
     end
     if nargin < 5
         overrides = struct();
