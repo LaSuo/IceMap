@@ -70,7 +70,7 @@ function cfg = icemap_config(overrides)
     end
     versions = {'v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'};
     assert(any(strcmp(cfg.design1_version, versions)), 'IceMap:Version', 'Unknown D1 version.');
-    assert(any(strcmp(cfg.design2_version, versions)), 'IceMap:Version', 'Unknown D2 version.');
+    assert(any(strcmp(cfg.design2_version, [versions {'v8'}])), 'IceMap:Version', 'Unknown D2 version.');
     assert(any(strcmp(cfg.design3_version, {'v1', 'v2', 'v3', 'v4', 'v5'})), 'IceMap:Version', 'Unknown D3 version.');
     validate_scene(cfg.scene);
     validate_processing_config(cfg);

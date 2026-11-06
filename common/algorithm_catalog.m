@@ -1,12 +1,13 @@
 function catalog = algorithm_catalog()
     % Stable labels; each complete method lives in a separate source file.
     catalog.d1 = {'design1_kalman_tracking', 'design1_energy_ins', 'design1_viterbi_tracking', ...
-                'design1_huber_tracking', 'design1_template_tracking', 'design1_gcc_phat', 'design1_rts_smoothing'};
+                  'design1_huber_tracking', 'design1_template_tracking', 'design1_gcc_phat', 'design1_rts_smoothing'};
     catalog.d2 = {'design2_gradient_tikhonov', 'design2_wiener', 'design2_multifrequency_collaboration', ...
-                'design2_tv_admm', 'design2_snr_fusion', 'design2_sparse_fista', 'design2_lowrank_denoising'};
+                  'design2_tv_admm', 'design2_snr_fusion', 'design2_sparse_fista', ...
+                  'design2_lowrank_denoising', 'design2_alternating_alignment'};
     catalog.default_d1 = 'v2';
     catalog.default_d2 = 'v3';
     catalog.d3 = {'design3_physical_fingerprints', 'design3_robust_phasor', 'design3_scale_space', ...
-                'design3_local_spectrum', 'design3_analytic_attributes'};
+                  'design3_local_spectrum', 'design3_analytic_attributes'};
     catalog.default_d3 = 'v1';
 end
