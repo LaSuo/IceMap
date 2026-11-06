@@ -1,0 +1,6 @@
+-r requirements.txt
+# Optional figure/report and training-curve analysis environment.
+pandas>=2.2,<2.4
+matplotlib>=3.9,<3.11
+seaborn>=0.13,<0.14
+tensorboard>=2.18,<2.21
