@@ -1,7 +1,8 @@
-function features = run_icemap(input_mat, output_mat, overrides)
+function [features, echo_views] = run_icemap(input_mat, output_mat, overrides)
     % MATLAB stages only. Dataset-specific import and label creation are separate.
     % Required MAT fields: radarl [T,N], radarh [T,R,C,N], time_s [1,N],
     % ins.z_delta_m/ins.x_m/ins.y_m. Ground truth is optional for inference.
+    % Optional second output contains amplitude maps for the demo figure.
     if nargin < 3
         overrides = struct();
     end
@@ -74,5 +75,17 @@ function features = run_icemap(input_mat, output_mat, overrides)
             end
         end
     end
+    if nargout > 1
+        shape = size(S.radarl);
+        echo_views = struct('raw_low', abs(S.radarl), ...
+                            'raw_high', high_band_rms(S.radarh, shape), ...
+                            'aligned_low', abs(d2.data_l), ...
+                            'aligned_high', high_band_rms(d2.data_h, shape), ...
+                            'fused', abs(d2.fused));
+    end
     save(output_mat, '-struct', 'features', '-v7.3');
+end
+
+function amplitude = high_band_rms(echo, shape)
+    amplitude = reshape(sqrt(mean(mean(abs(echo).^2, 2), 3)), shape);
 end

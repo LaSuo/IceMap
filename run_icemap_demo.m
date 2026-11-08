@@ -13,10 +13,12 @@ function summary = run_icemap_demo(data_root, output_root, options)
     %   opts.LabelMode = 'filename_nominal';
     %   opts.FilenameThicknessScaleM = 0.001;  % assumed filename unit -> m
     %   opts.LabelMode = 'none'; opts.NetworkEpochs = 0;  % no target metrics
+    %   opts.PlotMode = 'save';  % PNGs only; 'off' disables plots
     %
     % Missing calibration, synchronization, INS and targets use explicit ideal
     % assumptions. Source echoes are read without modification. The generated
     % records are marked pipeline_debug and cannot be used as accuracy evidence.
+    % Each record gets a PNG in figures/. The desktop previews the first two.
     % MATLAB requires Signal Processing Toolbox. The optional network step
     % requires Python with the dependencies in p4_design4/requirements.txt.
     root = fileparts(mfilename('fullpath'));
@@ -69,10 +71,16 @@ function summary = run_icemap_demo(data_root, output_root, options)
     prepared_dir = fullfile(output_root, 'prepared_mat');
     matlab_dir = fullfile(output_root, 'features_mat');
     feature_dir = fullfile(output_root, 'features_h5');
+    figure_dir = '';
     mkdir(prepared_dir);
     mkdir(matlab_dir);
     mkdir(feature_dir);
-    fprintf('DEMONSTRATION: assumed calibration/INS and nominal targets; not an accuracy benchmark.\n');
+    if ~strcmp(options.PlotMode, 'off')
+        figure_dir = fullfile(output_root, 'figures');
+        mkdir(figure_dir);
+    end
+    preview = strcmp(options.PlotMode, 'auto') && usejava('desktop');
+    fprintf('DEMONSTRATION: assumed calibration/INS, LabelMode=%s.\n', options.LabelMode);
     fprintf('Processing %d raw record(s) with D1 %s, D2 %s, D3 %s.\n', ...
             numel(paths), cfg.design1_version, cfg.design2_version, cfg.design3_version);
     entries = cell(numel(paths), 1);
@@ -90,13 +98,23 @@ function summary = run_icemap_demo(data_root, output_root, options)
         feature_h5 = fullfile(feature_dir, sprintf('record_%04d.h5', i));
         save(input_mat, '-struct', 'record', '-v7.3');
         clear record;
-        features = run_icemap(input_mat, feature_mat, cfg_import);
+        figure_png = '';
+        if isempty(figure_dir)
+            features = run_icemap(input_mat, feature_mat, cfg_import);
+        else
+            [features, echo_views] = run_icemap(input_mat, feature_mat, cfg_import);
+        end
         [features, target_method, target_details] = demo_targets(features, stem, options);
         features.experiment_metadata.target_assumptions = target_details;
         save(feature_mat, '-struct', 'features', '-v7.3');
         export_features_h5(feature_mat, feature_h5, 'demo_unknown_site', stem, target_method);
+        if ~isempty(figure_dir)
+            figure_png = fullfile(figure_dir, sprintf('record_%04d.png', i));
+            plot_icemap_demo(features, echo_views, stem, figure_png, preview && i <= 2);
+        end
         entries{i} = struct('source', paths{i}, 'prepared_mat', input_mat, ...
                             'feature_mat', feature_mat, 'feature_h5', feature_h5, ...
+                            'figure_png', figure_png, ...
                             'frames', size(features.phase, 1), 'range_bins', size(features.phase, 2), ...
                             'has_nominal_labels', isfield(features, 'ground_truth'), ...
                             'target_assumptions', target_details, 'elapsed_seconds', toc(started));
@@ -113,10 +131,14 @@ function summary = run_icemap_demo(data_root, output_root, options)
                                '--device', options.Device}, ' ');
     summary = struct('workflow_mode', 'pipeline_debug', 'data_root', data_root, ...
                      'output_root', output_root, 'options', options, 'records', {entries}, ...
-                     'feature_directory', feature_dir, 'network_command', network_command, ...
+                     'feature_directory', feature_dir, 'figure_directory', figure_dir, ...
+                     'network_command', network_command, ...
                      'network_executed', false, 'network_status', [], ...
                      'evaluation_role', 'demonstration_only; no independent site split or accuracy claim');
     save(fullfile(output_root, 'demo_manifest.mat'), 'summary');
+    if ~isempty(figure_dir)
+        fprintf('Radar and fingerprint plots saved to %s\n', figure_dir);
+    end
     if options.RunNetwork
         fprintf('Starting the optional network demonstration.\n');
         status = system(network_command, '-echo');
@@ -138,7 +160,7 @@ function options = demo_options(supplied)
                       'LabelMode', 'ideal', 'IdealThicknessM', [0.1 0.15], ...
                       'IdealDensityGcm3', [0.85 0.90], 'FilenameThicknessScaleM', 0.001, ...
                       'RunNetwork', false, 'PythonExecutable', 'python', ...
-                      'NetworkEpochs', 1, 'Device', 'auto');
+                      'NetworkEpochs', 1, 'Device', 'auto', 'PlotMode', 'auto');
     if ~isstruct(supplied) || ~isscalar(supplied)
         error('IceMap:DemoOptions', 'Options must be one scalar struct.');
     end
@@ -163,6 +185,10 @@ function options = demo_options(supplied)
     options.LabelMode = char(string(options.LabelMode));
     if ~any(strcmp(options.LabelMode, {'ideal', 'filename_nominal', 'none'}))
         error('IceMap:DemoLabelMode', 'LabelMode must be ideal, filename_nominal or none.');
+    end
+    options.PlotMode = char(string(options.PlotMode));
+    if ~any(strcmp(options.PlotMode, {'auto', 'save', 'off'}))
+        error('IceMap:DemoPlotMode', 'PlotMode must be auto, save or off.');
     end
     for name = {'IdealThicknessM', 'IdealDensityGcm3'}
         value = options.(name{1});
