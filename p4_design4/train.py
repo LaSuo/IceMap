@@ -5,6 +5,7 @@ Use --smoke for a short end-to-end execution check, not an accuracy experiment.
 The historical profile preserves recoverable development settings; its deleted
 warm-start backbone cannot be reconstructed exactly from the surviving files.
 For site-held-out five-fold experiments on calibrated records use main.py.
+For main-network OPF folds on the legacy H5 files use train_opf_cv.py.
 Both profiles add auxiliary objectives, input calibration and a residual head;
 fresh disables historical test-selected settings but is not pure six-loss SPAI.
 """
@@ -131,7 +132,10 @@ def fit_backbone(
     if checkpoint:
         saved = torch.load(checkpoint, map_location=device, weights_only=False)
         model.load_state_dict(saved.get("backbone_state", saved.get("model")))
-        if saved.get("backbone_config", saved.get("config", {}).get("model")) != asdict(
+        saved_config = saved.get(
+            "backbone_config", saved.get("config", {}).get("model")
+        )
+        if saved_config is None or asdict(ModelConfig(**saved_config)) != asdict(
             model.core.config
         ):
             raise ValueError("Warm-start backbone configuration differs from this run.")

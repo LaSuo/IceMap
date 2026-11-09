@@ -20,6 +20,7 @@ from quality_calibration import (
 from quality_features import build_quality_features
 from post_calibration import PostCalibrationConfig, apply_post_calibration
 from reference_alignment import ReferenceAlignmentConfig, align_prediction
+from quantized_weights import CONV_INT8_FORMAT, replace_convolutions
 
 
 class EnhancedIceInversion(nn.Module):
@@ -170,7 +171,10 @@ def load_model(filename, device=None):
     bundle = torch.load(filename, map_location="cpu", weights_only=False)
     if not isinstance(bundle, dict):
         raise ValueError("Model package must be a mapping.")
-    if bundle.get("quantization") and explicit_device is None:
+    if (
+        bundle.get("quantization") == "dynamic_linear_gru_qint8"
+        and explicit_device is None
+    ):
         device = "cpu"
     if {"model", "model_config", "training_config"} <= set(bundle):
         if bundle.get("checkpoint_format", "icemap.spai.v1") != "icemap.spai.v1":
@@ -180,11 +184,13 @@ def load_model(filename, device=None):
         core = build_ablation(
             ModelConfig(**bundle["model_config"]), bundle.get("ablation_case", "full")
         ).to(device)
-        if bundle.get("quantization") is not None:
-            if (
-                bundle["quantization"] != "dynamic_linear_gru_qint8"
-                or torch.device(device).type != "cpu"
-            ):
+        quantization = bundle.get("quantization")
+        if quantization == CONV_INT8_FORMAT:
+            replace_convolutions(
+                core, bundle.get("quantized_convolutions"), encode=False
+            )
+        elif quantization == "dynamic_linear_gru_qint8":
+            if torch.device(device).type != "cpu":
                 raise ValueError(
                     "This quantized SPAI format requires CPU dynamic Linear/GRU qint8."
                 )
@@ -197,6 +203,8 @@ def load_model(filename, device=None):
             core = torch.ao.quantization.quantize_dynamic(
                 core.eval(), {nn.Linear, nn.GRU}, dtype=torch.qint8
             )
+        elif quantization is not None:
+            raise ValueError(f"Unsupported SPAI quantization: {quantization!r}.")
         core.load_state_dict(bundle["model"], strict=True)
         bundle = dict(bundle)
         bundle.setdefault("model_kind", "spai_six_loss")
@@ -228,8 +236,8 @@ def load_model(filename, device=None):
         bundle.get("architecture_config"),
     ).to(device)
     backbone.load_state_dict(bundle["backbone_state"])
-    assert (
-        asdict(backbone.core.config) == bundle["backbone_config"]
+    assert asdict(backbone.core.config) == asdict(
+        ModelConfig(**bundle["backbone_config"])
     ), "Backbone configuration differs from the trained bundle."
     state = bundle["calibration_state"]
     config = CalibrationConfig(**bundle["calibration_config"])

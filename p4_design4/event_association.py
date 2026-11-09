@@ -2,6 +2,91 @@
 
 import math
 import torch
+from torch.nn import functional as F
+
+
+def ordered_interface_bins(logits, layer_count, min_gap, allowed=None):
+    """Maximize the ordinal timing score over a distinct ordered peak path.
+
+    The lattice uses observed time bins. Padding slots repeat the last selected
+    interface so they cannot contribute a nonzero physical delay. With a peak
+    mask, use an unrestricted path only when the peaks cannot support the count.
+    """
+    batch, frames, samples, events = logits.shape
+    if min_gap < 1 or samples < (events - 1) * min_gap + 1:
+        raise ValueError("Ordered interface spacing exceeds the timing grid.")
+    scores = logits.reshape(-1, samples, events)
+    counts = layer_count.reshape(-1).long()
+    if allowed is not None:
+        constrained = scores.masked_fill(~allowed.reshape(-1, samples, 1), -torch.inf)
+        scores = torch.cat((scores, constrained), dim=0)
+        counts = counts.repeat(2)
+    best = scores[..., 0]
+    previous = []
+    value, end = best.max(-1)
+    endpoints = [end]
+    best_values = [value]
+    for rank in range(1, events):
+        prefix, pointers = best.cummax(-1)
+        best = F.pad(prefix[..., :-min_gap], (min_gap, 0), value=-torch.inf)
+        best = best + scores[..., rank]
+        previous.append(F.pad(pointers[..., :-min_gap], (min_gap, 0)))
+        value, end = best.max(-1)
+        endpoints.append(end)
+        best_values.append(value)
+    point = torch.stack(endpoints, -1).gather(1, counts[:, None]).squeeze(1)
+    selected = point[:, None].expand(-1, events).clone()
+    for rank in range(events - 1, -1, -1):
+        active = counts >= rank
+        selected[:, rank] = torch.where(active, point, selected[:, rank])
+        if rank:
+            parent = previous[rank - 1].gather(1, point[:, None]).squeeze(1)
+            point = torch.where(active, parent, point)
+    if allowed is not None:
+        valid = torch.stack(best_values, -1).gather(1, counts[:, None]).isfinite()
+        unrestricted, constrained = selected.chunk(2)
+        selected = torch.where(valid.chunk(2)[1], constrained, unrestricted)
+    return selected.reshape(batch, frames, events)
+
+
+def decode_interface_roles(role_logits, count_prior, min_gap, minimum_layers, penalty):
+    """Jointly select a surface, zero or more inner interfaces, and a bottom.
+
+    Each score is a local log odds against clutter. Each added inner interface
+    must improve the best complete path enough to overcome the count penalty.
+    """
+    batch, frames, samples, _ = role_logits.shape
+    n_counts = count_prior.shape[-1]
+    if min_gap < 1 or samples < min_gap * minimum_layers + 1:
+        raise ValueError("Minimum layer count and spacing exceed the timing grid.")
+    feasible = min(n_counts - 1, (samples - 1) // min_gap)
+    surface, inner, bottom = role_logits.reshape(-1, samples, 3).unbind(-1)
+    prior = count_prior.reshape(-1, n_counts)
+
+    best = surface
+    value, end = best.max(-1)
+    endpoints, path_scores = [end], [value]
+    parents = []
+    for count in range(1, feasible + 1):
+        prefix, parent = best.cummax(-1)
+        prefix = F.pad(prefix[..., :-min_gap], (min_gap, 0), value=-torch.inf)
+        parents.append(F.pad(parent[..., :-min_gap], (min_gap, 0)))
+        value, end = (prefix + bottom).max(-1)
+        endpoints.append(end)
+        path_scores.append(value - penalty * (count - 1))
+        best = prefix + inner
+
+    scores = torch.stack(path_scores, -1) + prior[:, : feasible + 1]
+    count = scores[..., minimum_layers:].argmax(-1) + minimum_layers
+    point = torch.stack(endpoints, -1).gather(1, count[:, None]).squeeze(1)
+    chosen = point[:, None].expand(-1, n_counts).clone()
+    for rank in range(feasible, -1, -1):
+        active = count >= rank
+        chosen[:, rank] = torch.where(active, point, chosen[:, rank])
+        if rank:
+            parent = parents[rank - 1].gather(1, point[:, None]).squeeze(1)
+            point = torch.where(active, parent, point)
+    return count.reshape(batch, frames), chosen.reshape(batch, frames, n_counts)
 
 
 def associate_events(predicted_s, layer_count, observed_s, valid, tolerance_s):
