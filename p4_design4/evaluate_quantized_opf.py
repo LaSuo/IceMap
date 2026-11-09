@@ -88,7 +88,9 @@ async def evaluate_async(model, bundle, data, indices, device, meters):
         out = result.outputs
         if cfg.echo_path:
             path_frames += int(out["echo_path_used"].sum())
-        if (out["boundary_times_s"].diff(dim=-1) < 0).any():
+        separation = out["boundary_times_s"].diff(dim=-1)
+        active = torch.arange(separation.shape[-1]) < out["layer_count"].unsqueeze(-1)
+        if ((separation < 0) & active).any():
             raise RuntimeError("Decoded boundaries are out of order.")
         expected = (
             cfg.c0_m_s

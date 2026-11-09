@@ -8,6 +8,6 @@ function catalog = algorithm_catalog()
     catalog.default_d1 = 'v2';
     catalog.default_d2 = 'v3';
     catalog.d3 = {'design3_physical_fingerprints', 'design3_robust_phasor', 'design3_scale_space', ...
-                  'design3_local_spectrum', 'design3_analytic_attributes'};
+                  'design3_local_spectrum', 'design3_analytic_attributes', 'design3_dual_band_echo_vote'};
     catalog.default_d3 = 'v1';
 end

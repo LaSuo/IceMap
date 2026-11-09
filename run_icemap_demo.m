@@ -80,7 +80,8 @@ function summary = run_icemap_demo(data_root, output_root, options)
         mkdir(figure_dir);
     end
     preview = strcmp(options.PlotMode, 'auto') && usejava('desktop');
-    fprintf('DEMONSTRATION: assumed calibration/INS, LabelMode=%s.\n', options.LabelMode);
+    fprintf('DEMONSTRATION: assumed calibration/INS, LabelMode=%s. Output is for pipeline debugging.\n', ...
+            options.LabelMode);
     fprintf('Processing %d raw record(s) with D1 %s, D2 %s, D3 %s.\n', ...
             numel(paths), cfg.design1_version, cfg.design2_version, cfg.design3_version);
     entries = cell(numel(paths), 1);
