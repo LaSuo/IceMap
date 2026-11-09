@@ -24,3 +24,4 @@ Dates provide an approximate overview of development, including earlier code rev
 | [2026] | [Apr] | Algorithm variants test                  |
 | [2026] | [May] | Result inspection                        |
 | [2026] | [Jun] | Experiment organization                  |
+| [2026] |  [+]  | Updating                                 |
