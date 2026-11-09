@@ -19,7 +19,8 @@ function [features, echo_views] = run_icemap(input_mat, output_mat, overrides)
     duration2 = toc(stage_timer);
     stage_timer = tic;
     if strcmp(cfg.fingerprint_input_mode, 'dual_band')
-        features = design3_select(d2.data_l, d2.data_h, d2.time_s, cfg);
+        reference = struct('low', d1.geometry_low, 'high', d1.geometry_high);
+        features = design3_select(d2.data_l, d2.data_h, d2.time_s, cfg, reference);
     elseif strcmp(cfg.fingerprint_input_mode, 'fused')
         % A scalar fused stream cannot retain receiver/chirp diversity. Replication
         % only supplies the expected tensor layout; it creates no new observations.

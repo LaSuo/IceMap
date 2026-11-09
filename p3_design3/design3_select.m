@@ -1,4 +1,4 @@
-function out = design3_select(low, high, time_s, cfg)
+function out = design3_select(low, high, time_s, cfg, reference)
     % Registry-only dispatcher; each feature method is implemented independently.
     catalog = algorithm_catalog();
     id = find(strcmp(cfg.design3_version, compose('v%d', 1:numel(catalog.d3))), 1);
@@ -6,7 +6,14 @@ function out = design3_select(low, high, time_s, cfg)
         error('IceMap:Version', 'Unknown D3 version: %s.', cfg.design3_version);
     end
     [low, high, time_s] = validate_echoes(low, high, time_s);
-    out = feval(catalog.d3{id}, low, high, time_s, cfg);
+    if strcmp(cfg.design3_version, 'v6')
+        if nargin < 5
+            reference = struct();
+        end
+        out = feval(catalog.d3{id}, low, high, time_s, cfg, reference);
+    else
+        out = feval(catalog.d3{id}, low, high, time_s, cfg);
+    end
     required = {'phase', 'E', 'tau', 'scatter_valid'};
     for i = 1:numel(required)
         k = required{i};

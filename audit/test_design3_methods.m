@@ -190,3 +190,25 @@ function clean_fixture(folder)
     end
     rmdir(folder);
 end
+
+function testDualBandVoteBoundsCompensationAndPreservesItsGate(testCase)
+    [low, high, time, cfg] = feature_case();
+    cfg.design3_version = 'v6';
+    cfg.methods.d3.echo_min_range_m = .04;
+    cfg.methods.d3.echo_max_range_m = .16;
+    boosted = low;
+    boosted(:, 110) = 100 * max(abs(low(:)));
+    reference = struct('low', low, 'high', high);
+    out = design3_select(boosted, high, time, cfg, reference);
+    verifyTrue(testCase, out.diagnostics.uncompensated_reference_used);
+    verifyEqual(testCase, out.algorithm_version, 'v6');
+    vote = out.extra_features.dual_band_echo_agreement;
+    verifyGreaterThan(testCase, min(vote(:, 60)), max(vote(:, 110)));
+    valid = out.extra_feature_valid.dual_band_echo_agreement;
+    verifyEqual(testCase, nnz(vote(~valid)), 0);
+    verifyTrue(testCase, all(out.E(~out.scatter_valid) == 0));
+    fallback = design3_select(low, high, time, cfg);
+    verifyFalse(testCase, fallback.diagnostics.uncompensated_reference_used);
+    verifyError(testCase, @() design3_select(low, high, time, cfg, 3), ...
+                'IceMap:EchoReferenceType');
+end
