@@ -28,6 +28,7 @@ function out = design1(path_name, file_name, save_f1, save_f2, overrides)
         ins.x_m = double(ins.px(:)) * scale;
         ins.y_m = double(ins.py(:)) * scale;
     end
+    % The [dataset.online] has been pre-corrected
     out = design1_select(S.radarl, S.radarh, S.time_s, ins, cfg);
     if isfield(S, 'label')
         out.label = S.label;
